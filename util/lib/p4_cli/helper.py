@@ -188,16 +188,16 @@ class P4InfoHelper(object):
 
     # get mc_group_entry
     def buildMCEntry(self, mc_group_id, replicas=None):
-        mc_group_entry = p4runtime_pb2.MulticastGroupEntry()
-        mc_group_entry.multicast_group_id = mc_group_id
+        mc_entry = p4runtime_pb2.PacketReplicationEngineEntry()
+        mc_entry.multicast_group_entry.multicast_group_id = mc_group_id
         if replicas:
-            mc_group_entry.replicas.extend(
+            mc_entry.multicast_group_entry.replicas.extend(
                 [
-                    self.get_replicas_pb(egress_port, instance)
-                    for egress_port, instance in replicas.iteritems()
+                    self.get_replicas_pb(replica["egress_port"], replica["instance"])
+                    for replica in replicas
                 ]
             )
-        return mc_group_entry
+        return mc_entry
 
     # get packetout
     def buildPacketOut(self, payload, metadata=None):

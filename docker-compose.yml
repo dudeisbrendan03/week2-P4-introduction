@@ -1,6 +1,6 @@
 services:
   mininet:
-    image: opennetworking/ngsdn-tutorial:stratum_bmv2
+    image: mn-stratum 
     hostname: mininet
     container_name: mininet
     privileged: true
@@ -8,11 +8,11 @@ services:
     stdin_open: true
     restart: always
     environment:
-    - DISPLAY=docker.for.mac.host.internal:0
+    - DISPLAY=docker.for.mac.host.internal:1
     volumes:
       - ./tmp:/tmp
       - ./mininet:/mininet
-      - ./p4src:/p4sr
+      - ./p4src:/p4src
       - ./util:/util
     ports:
       - "50001:50001"

@@ -27,7 +27,7 @@ If you have opened correctly the devcontainer, you should see the following prom
 
 For this first task, we will reuse the home network topology we used in the first week and replace the Linux Switch node with a P4 switch. The updated topology file will replace the home switch with a P4 switch, which we will use to host our custom P4 applications. 
 
-![Figure 1: Home network topology with P4 switch](.resources/home-network-p4.png){width="5in"}
+![Figure 1: Home network topology with P4 switch](.resources/homenet-router.png){width="5in"}
 
 A P4 switch is a network device that allows a developer to realise and execute custom packet processing programs implemented using the P4 language. There are several P4 switch implementations out there, with some using real hardware to implement P4 pipeline, like the Barefoot Tofino. In this exercise, we will use the Stratum software switch, which is an open-source implementation of a P4 programmable switch. Stratum supports the P4 Runtime API, which allows us to program the switch using a P4 program using the GRPC protocol. The switch is designed to implement the P4 v1model architecture, which is a standard architecture for P4 programmable switches. It is not designed for high performance, but rather for learning and experimentation purposes.
 
@@ -52,6 +52,14 @@ In order to simplify your interactions with the mininet topology and the P4 prog
 ```
 E0106 11:32:47.355383    88 main.cc:121] Starting bmv2 simple_switch and waiting for P4 pipeline
 ```
+
+You can connect to the mininet CLI using the command `make mn-cli`. At the moment the switch is not doing anything, since we have not loaded any P4 program yet. You can now connect to the Mininet CLI and run the command `> phone python send_receive.py 192.168.0.5`. This program will send a packet from the phone host to the switch. Since the switch is not doing anything, the packet will be dropped and you will not see any output in the app. In the next step, we will load a simple P4 program that makes the switch act as a packet reflector and forwards the packet back to the sender.
+
+> If you have a message when you run the command `make start` like the following:
+>```
+>  - ERROR! While parsing input runtime configuration: file does not exist /home/user/h-drive/week2-P4-introduction/mininet/../p4src/build/p4info.txt
+>```
+> Do not worry about it, this is expected since we have not built any P4 program yet. We will build our first P4 program in the next step.
 
 ## Task 2: Introduction to P4 programming
 
@@ -182,31 +190,110 @@ struct standard_metadata_t {
 - `bmv2.json`: This file contains the compiled P4 program in JSON format, which is used by the Stratum software switch to configure the P4 pipeline.
 - `p4info.txt`: This file contains details that can be used by the P4 Runtime controller to interact with the P4 program running in the switch. This is something that we will explore in more detail in future exercises.
 
-### Understanding the P4 program structure
+When you run the command `make start`, the Makefile will automatically compile the P4 program and load it into the switch using the Stratum software switch. You can check the logs of the switch to see if the P4 program was loaded successfully. If everything went well, you should see a message like this in the logs: `I0106 11:32:50.123456    88 p4_pipeline_builder.cc:123] P4 pipeline successfully loaded`. Furthermore, you can use the small `send_receive.py` script located in the `mininet/` folder to test the functionality of the switch. This script sends a packet from a host to the switch and waits for a copy of the packet. If you connect to the mininet CLI using the command `make mn-cli` and run the command `> phone python send_receive.py 192.168.0.5`, you should see that the packet is sent from the phone host to the switch and read the following output:
 
-Lets start building our P4 program! In this exercise, you will learn how the basics of the P4 language and learn how to compile a P4 program using the SCC.333 pipeline. 
+```
+[!] A packet was reflected from the switch:
+[!] Info: 00:01:02:03:04:05 -> da:2a:0a:c7:d7:96
+```
 
-A P4 switch typically organizes its packet processing logic into several key components:
+## Task 3: Static Switching using P4
 
-- **Header Definitions**: Define the structure of the packet headers that the switch will recognize and process.
-- **Parser**: Extracts headers from incoming packets based on the defined header structures.
-- **Match-Action Tables**: Define how packets are processed based on header fields, allowing for flexible forwarding and modification actions.
-- **Control Blocks**: Orchestrate the overall packet processing flow, applying parsers and tables in a defined sequence.
-- **Deparser**: Reconstructs packets for transmission after processing, ensuring they are correctly formatted.  
+Lets start building our P4 program! In this exercise, you will learn how the basics of the P4 language and learn how to compile a P4 program using the SCC.333 pipeline. In this introductory exercise we will use our first table and conditional statements in a control block. In this exercise you will make a two-port switch act as a packet repeater, in other words, when a packet enters port 1 it has to be leave from port 2 and vice versa.
 
-### P4 parser functions
+To solve this exercise you only need to fill the gaps you will need to modify the `main.p4` file. The places where you are supposed to write your own code are marked with a TODO. You will have to solve this exercise using two different approaches (for the sake of learning). First, and since the switch only has 2 ports you will have to solve the exercise by just using conditional statements and fixed logic. For the second solution, you will have to use a match-action table and populate it using the CLI.
 
+### Parsing Ethernet Headers
 
+Before we start implementing the switch logic, we need to parse the Ethernet headers from the incoming packets. To do this, we will need to define the Ethernet header structure and implement the parsing logic in the `MyParser` block.
 
-## Task 3: Parsing an Ethernet packet
+The first step requires from you to define the Ethernet header structure. You can do this by adding the following code to the `headers` struct:
 
-In the second introductory exercise we will use our first table and conditional statements in a control block. In this exercise you will make a two-port switch act as a packet repeater, in other words, when a packet enters port 1 it has to be leave from port 2 and vice versa.
+```C
+typedef bit<48> macAddr_t;
 
-To solve this exercise you only need to fill the gaps you will find in the repeater.p4 skeleton. The places where you are supposed to write your own code are marked with a TODO. You will have to solve this exercise using two different approaches (for the sake of learning). First, and since the switch only has 2 ports you will have to solve the exercise by just using conditional statements and fixed logic. For the second solution, you will have to use a match-action table and populate it using the CLI.
+header ethernet_t {
+    macAddr_t dstAddr;
+    macAddr_t srcAddr;
+    bit<16>   etherType;
+}
 
-### Using Conditional Statements
+struct metadata {
+    /* empty */
+}
 
-1. Using conditional statements, write (in the `MyIngress` Control Block) the logic needed to make the switch act as a repeater. (only `TODO 3`)
+struct headers {
+    ethernet_t   ethernet;
+}
+```
+
+This code block defines the Ethernet header structure with the destination MAC address, source MAC address, and EtherType fields. The `macAddr_t` type is defined as a 48-bit bitvector to represent MAC addresses, which are 6 bytes long. typedef are a common way in P4 to define new types based on existing ones and improve code readability. Furthermore, we update the `headers` struct to include the newly defined `ethernet_t` header. In future programs, you can define more headers and add them to the `headers` struct as needed to parse additional protocol headers.
+
+In order to parse the Ethernet header from the incoming packets, we need to update the `MyParser` block. You will need to add a new state to the parser that extracts the Ethernet header from the packet. You can do this by adding the following code to the `MyParser` block:
+
+```C
+parser MyParser(packet_in packet,
+                out headers hdr,
+                inout metadata meta,
+                inout standard_metadata_t standard_metadata) {
+
+      state start{
+  	  packet.extract(hdr.ethernet);
+          transition accept;
+      }
+
+}
+```
+
+This code block updates the `MyParser` block to extract the Ethernet header from the incoming packet. The `packet.extract(hdr.ethernet);` line extracts the Ethernet header and stores it in the `hdr.ethernet` field of the `headers` struct. The parser then transitions to the `accept` state, indicating that the parsing is complete.
+
+Parsing in P4 is done using a state machine, where each state represents a specific parsing step. In this case, we have a single state called `start`, which extracts the Ethernet header and then transitions to the `accept` state. You can add more states to the parser to extract additional headers as needed. For example, if you wanted to parse IP headers, you would add a new state that extracts the IP header after the Ethernet header has been parsed, while the start logic would transition to that new state instead of directly to accept, based on the `etherType` field of the Ethernet header. For example: 
+
+```C
+      state start{
+  	  packet.extract(hdr.ethernet);
+          transition select(hdr.ethernet.etherType) {
+              0x0800: parse_ipv4;
+              0x86DD: parse_ipv6;
+              default: accept;
+          }
+      }
+
+        state parse_ipv4 {
+            packet.extract(hdr.ipv4);
+            transition accept;
+        }
+```
+
+### Packet Switching using Conditional Statements
+
+Your goal for this part of the exercise is to make the switch act as an Ethernet Switch using only conditional statements. You will need to modify the `MyIngress` control block in order to check the destination MAC address of each packet and forward packets accordingly. You can use the following table to determine the output port based on the destination MAC address:
+
+| Host | MAC Address | Switch Port |
+|-------|------------|-------------|
+| homePC    | 00:00:00:00:00:02 | 2           |
+| tablet    | 00:00:00:00:00:05 | 3           |
+| phone     | 00:00:00:00:00:03 | 4           |
+| router    | 00:00:00:00:00:04 | 1           |
+
+> Your Mininet topology script uses static MAC addresses for the hosts. The MAC addresses in the table above correspond to the hosts defined in the topology and assume that you haven't changed the order of the statements in the Python file. If you have changed the order of the hosts, please check the MAC addresses assigned to each host by executing the command `ip link show up` in each host (e.g., `> homePC ip link show up`).
+
+In order to implement the switching logic using conditional statements, you will need to add the following code to the `MyIngress` control block:
+
+```C
+control MyIngress(inout headers hdr,
+                  inout metadata meta,
+                  inout standard_metadata_t standard_metadata) {
+       if (hdr.ethernet.dstAddr == 0x000000000004) {
+           //forward to appropriate port
+       } else if (hdr.ethernet.dstAddr == 0x000000000002) {
+           ...
+       } else {
+           //drop packet or send to CPU
+       }
+```
+
+You can drop packets by setting the `egress_spec` field to `0`. Alternatively, you can send packets to the CPU port by setting the `egress_spec` field to `CPU_PORT`, which is defined in the `v1model.p4` architecture file. This is useful for handling packets with unknown destination MAC addresses or for implementing control plane functionalities. We will explore this in more detail in our activity next week.
 
 ### Using a Table
 

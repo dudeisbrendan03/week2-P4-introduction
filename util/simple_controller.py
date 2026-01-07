@@ -243,7 +243,7 @@ def cloneEntryToString(rule):
     return 'Clone Session {0} => ({1}) ({2})'.format(clone_id, ports_str, packet_length_bytes)
 
 def insertMulticastGroupEntry(sw, rule, p4info_helper):
-    mc_entry = p4info_helper.buildMulticastGroupEntry(rule["multicast_group_id"], rule['replicas'])
+    mc_entry = p4info_helper.buildMCEntry(rule["multicast_group_id"], rule['replicas'])
     sw.WritePREEntry(mc_entry)
 
 def insertCloneGroupEntry(sw, rule, p4info_helper):

@@ -31,7 +31,8 @@ _start:
 	$(info *** Starting Mininet (${NGSDN_TOPO_PY})... )
 	@NGSDN_TOPO_PY=${NGSDN_TOPO_PY} docker compose -f docker-compose.yml up -d
 	sleep 10
-	PYTHONPATH=${PYTHONPATH} python3 ./util/simple_controller.py -a localhost:50001 -d 1 -p tmp/s1.txt -c mininet/s1-runtime.json
+	$(info *** Loading P4 program on the switch...)
+	PYTHONPATH=${PYTHONPATH} python3 ./util/simple_controller.py -a localhost:50001 -d 1 -p tmp/simple-controller.txt -c mininet/s1-runtime.json
 
 start: NGSDN_TOPO_PY := topo.py
 start: _start
@@ -61,17 +62,21 @@ p4-build: p4src/main.p4
 		p4src/main.p4
 	@echo "*** P4 program compiled successfully! Output files are in p4src/build"
 
+p4-reload:
+	$(info *** Reloading P4 program on the switch...)
+	PYTHONPATH=${PYTHONPATH} python3 ./util/simple_controller.py -a localhost:50001 -d 1 -p tmp/simple-controller.txt -c mininet/s1-runtime.json
+
 proto-build:
-	python3 -m grpc_tools.protoc --proto_path=../proto/ ../proto/p4/v1/p4data.proto \
-		../proto/p4/config/v1/p4info.proto ../proto/p4/config/v1/p4types.proto \
-		../proto/google/rpc/status.proto ../proto/google/rpc/code.proto \
-		../proto/p4/tmp/p4config.proto ../proto/p4/server/v1/config.proto \
-		../proto/p4/v1/p4runtime.proto --python_out=../util/lib/ --grpc_python_out=../util/lib/
+	python3 -m grpc_tools.protoc --proto_path=./proto/ proto/p4/v1/p4data.proto \
+		proto/p4/config/v1/p4info.proto proto/p4/config/v1/p4types.proto \
+		proto/google/rpc/status.proto proto/google/rpc/code.proto \
+		proto/p4/tmp/p4config.proto proto/p4/server/v1/config.proto \
+		proto/p4/v1/p4runtime.proto --python_out=./util/lib/ --grpc_python_out=./util/lib/
 
 output/lab-handout.html: .resources/metadata.md README.md .resources/pandoc.css
 	mkdir -p output
 	# cat .resources/metadata.md README.md | pandoc -s -f markdown+task_lists -t html5 --css .resources/pandoc.css --lua-filter=.resources/enable-checkbox.lua --embed-resources -o output/lab-handout.html
-	docker run -ti --rm -v "$(pwd)":/workspace/ scc-registry.lancs.ac.uk/teaching/pandoc_base:latest sh -c "cd /workspace; cat .resources/metadata.md README.md | pandoc -s -f markdown+task_lists -t html5 --css .resources/pandoc.css --lua-filter=.resources/enable-checkbox.lua --embed-resources -o output/lab-handout.html"
+	docker run -ti --rm -v "`pwd`":/workspace/ scc-registry.lancs.ac.uk/teaching/pandoc_base:latest sh -c "cd /workspace; cat .resources/metadata.md README.md | pandoc -s -f markdown+task_lists -t html5 --css .resources/pandoc.css --lua-filter=.resources/enable-checkbox.lua --embed-resources -o output/lab-handout.html"
 
 clean:
 	rm -r ./tmp/

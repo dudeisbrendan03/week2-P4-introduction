@@ -58,7 +58,7 @@ def get_if():
 
 
 def send_packet(iface, addr):
-    input("Press the return key to send a packet:")
+    raw_input("Press the return key to send a packet:")
     print("Sending on interface %s to %s\n" % (iface, str(addr)))
     pkt = Ether(src=get_if_hwaddr(iface), dst='00:01:02:03:04:05')
     pkt = pkt / IP(dst=addr)
@@ -66,7 +66,7 @@ def send_packet(iface, addr):
 
 
 def main():
-    addr = "10.0.0.2"
+    addr = sys.argv[1] if len(sys.argv) > 1 else "192.168.0.5"
     addr = socket.gethostbyname(addr)
     iface = get_if()
 
