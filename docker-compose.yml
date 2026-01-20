@@ -8,8 +8,8 @@ services:
     stdin_open: true
     restart: always
     environment:
-      # - DISPLAY=${DISPLAY} 
-      - DISPLAY=docker.for.mac.host.internal:0
+      - DISPLAY=${DISPLAY} 
+      # - DISPLAY=docker.for.mac.host.internal:0
     volumes:
       - ./tmp:/tmp
       - ./mininet:/mininet
