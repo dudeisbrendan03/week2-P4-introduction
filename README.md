@@ -323,7 +323,7 @@ parser MyParser(packet_in packet,
 
 This code block updates the `MyParser` block to extract the Ethernet header from the incoming packet. The `packet.extract(hdr.ethernet);` line extracts the Ethernet header and stores it in the `hdr.ethernet` field of the `headers` struct. The parser then transitions to the `accept` state, indicating that the parsing is complete.
 
-Parsing in P4 is performed [using a state machine](https://p4.org/wp-content/uploads/sites/53/2024/10/P4-16-spec-v1.2.5.pdf#page=104.63), where each state corresponds to a specific parsing step. In this case, we have a single state called `start`, which extracts the Ethernet header and then transitions to the `accept` state. You can add more states to the parser to extract additional headers as needed. For example, if you wanted to parse IP headers, you would add a new state that extracts the IP header after the Ethernet header has been parsed, while the start logic would transition to that new state instead of directly to accept, based on the `etherType` field of the Ethernet header. For example: 
+Parsing in P4 is performed [using a state machine](https://p4.org/wp-content/uploads/sites/53/2024/10/P4-16-spec-v1.2.5.pdf#page=104.63), where each state corresponds to a specific parsing step. In this case, we have a single state called `start`, which extracts the Ethernet header and then transitions to the `accept` state. You can add more states to the parser to extract additional headers as needed. Lets consider a hypothetical more complex example of a P4 program processing IPv4 and IPv6 packets. In this case, you will need to extract the IP header using a different header structure, depending on the type value in the Ethernet header. You should add two new states that extracts the different IP header after the Ethernet header has been parsed, while the start logic would transition to that new state instead of directly to accept, based on the `etherType` field of the Ethernet header. For example: 
 
 ```C
       state start{
@@ -339,6 +339,11 @@ Parsing in P4 is performed [using a state machine](https://p4.org/wp-content/upl
             packet.extract(hdr.ipv4);
             transition accept;
         }
+
+        state parse_ipv6 {
+            packet.extract(hdr.ipv6);
+            transition accept;
+        }}
 ```
 
 ### Approach 1: Packet Switching using Conditional Statements
